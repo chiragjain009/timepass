@@ -1,164 +1,122 @@
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import static org.junit.Assert.*;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.Before;
+import org.junit.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.transaction.annotation.Transactional;
+
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
-class ChangeBeginStatusServiceTest {
+public class ChangeEndStatusServiceTest {
 
     @Mock
-    private ICcrRequestService ccrRequestService;
+    private ICCrRequestService ccrRequestService;
 
     @Mock
     private ICcrRequestProcessDetailsService ccrRequestProcessDetailsService;
 
     @InjectMocks
-    private ChangeBeginStatusService changeBeginStatusService;
+    private ChangeEndStatusService changeEndStatusService;
 
-    private static final Logger logger = LoggerFactory.getLogger(ChangeBeginStatusService.class);
+    private static final Logger logger = LoggerFactory.getLogger(ChangeEndStatusService.class);
 
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
+    @Before
+    public void setUp() {
+        MockitoAnnotations.initMocks(this);
     }
 
     @Test
-    void testStartRequest_NoPendingRequests() throws SDPReportingNMSCException {
+    public void testStartChangeEndStatusRequests_NoRequests() throws SDPReportingNMSCException {
         // Arrange
-        when(ccrRequestService.findPendingQuarterlyRequests()).thenReturn(Collections.emptyList());
-        when(ccrRequestService.findPendingMonthlyRequests()).thenReturn(Collections.emptyList());
+        when(ccrRequestService.findAllMonthlyOrQuarterlyInProgressRequests()).thenReturn(Collections.emptyList());
 
         // Act
-        changeBeginStatusService.startRequest();
+        changeEndStatusService.startChangeEndStatusRequests();
 
         // Assert
-        verify(ccrRequestProcessDetailsService, never()).updateChangeBeginStatusById(anyLong(), any());
-        // Add logger assertion if needed
+        verify(ccrRequestProcessDetailsService, never()).updateChangeEndStatusById(anyLong(), eq("OK"));
+        verify(ccrRequestService, never()).updateStatus(anyLong(), eq("OK"));
+        verify(ccrRequestService, never()).updateLatestMonthly(any());
     }
 
     @Test
-    void testStartRequest_WithQuarterlyRequest() throws SDPReportingNMSCException {
+    public void testStartChangeEndStatusRequests_WithRequests() throws SDPReportingNMSCException {
         // Arrange
-        CcrRequestBO quarterlyRequest = new CcrRequestBO();
-        List<CcrRequestBO> quarterlyRequests = Collections.singletonList(quarterlyRequest);
+        CcrRequestBO requestBO = mock(CcrRequestBO.class); // Mock a CcrRequestBO
+        List<CcrRequestBO> requestList = Collections.singletonList(requestBO);
 
-        when(ccrRequestService.findPendingQuarterlyRequests()).thenReturn(quarterlyRequests);
-        when(ccrRequestService.findPendingMonthlyRequests()).thenReturn(Collections.emptyList());
-        when(ccrRequestProcessDetailsService.updateChangeBeginStatusById(anyLong(), any())).thenReturn(null);
+        when(ccrRequestService.findAllMonthlyOrQuarterlyInProgressRequests()).thenReturn(requestList);
+        when(ccrRequestProcessDetailsService.isAllDependencyCompleted(any(CcrRequestBO.class), eq("CHANGE_END_STATUS"))).thenReturn(true);
 
         // Act
-        changeBeginStatusService.startRequest();
+        changeEndStatusService.startChangeEndStatusRequests();
 
         // Assert
-        verify(ccrRequestProcessDetailsService, times(1)).updateChangeBeginStatusById(anyLong(), eq("OK"));
+        verify(ccrRequestProcessDetailsService, times(1)).updateChangeEndStatusById(anyLong(), eq("OK"));
+        verify(ccrRequestService, times(1)).updateStatus(anyLong(), eq("OK"));
+        verify(ccrRequestService, times(1)).updateLatestMonthly(any());
     }
 
     @Test
-    void testStartRequest_WithMonthlyRequest() throws SDPReportingNMSCException {
+    public void testStartChangeEndStatusRequests_Exception() throws SDPReportingNMSCException {
         // Arrange
-        CcrRequestBO monthlyRequest = new CcrRequestBO();
-        List<CcrRequestBO> monthlyRequests = Collections.singletonList(monthlyRequest);
-
-        when(ccrRequestService.findPendingQuarterlyRequests()).thenReturn(Collections.emptyList());
-        when(ccrRequestService.findPendingMonthlyRequests()).thenReturn(monthlyRequests);
-        when(ccrRequestProcessDetailsService.updateChangeBeginStatusById(anyLong(), any())).thenReturn(null);
-
-        // Act
-        changeBeginStatusService.startRequest();
-
-        // Assert
-        verify(ccrRequestProcessDetailsService, times(1)).updateChangeBeginStatusById(anyLong(), eq("OK"));
-    }
-
-    @Test
-    void testStartRequest_ExceptionThrown() throws SDPReportingNMSCException {
-        // Arrange
-        when(ccrRequestService.findPendingQuarterlyRequests()).thenThrow(new RuntimeException("DB Error"));
+        when(ccrRequestService.findAllMonthlyOrQuarterlyInProgressRequests()).thenThrow(new RuntimeException("DB Error"));
 
         // Act & Assert
-        SDPReportingNMSCException thrownException = assertThrows(SDPReportingNMSCException.class, () -> {
-            changeBeginStatusService.startRequest();
-        });
-        assertEquals("Exception: DB Error", thrownException.getMessage());
+        try {
+            changeEndStatusService.startChangeEndStatusRequests();
+            fail("Expected SDPReportingNMSCException");
+        } catch (SDPReportingNMSCException e) {
+            assertEquals("Exception: DB Error", e.getMessage());
+        }
     }
 
     @Test
-    void testStartSimulationRequest_NoPendingSimulationRequests() throws SDPReportingNMSCException {
+    public void testStartChangeEndStatusRequestsForSimulation_NoRequests() throws SDPReportingNMSCException {
         // Arrange
-        when(ccrRequestService.findPendingSimulationRequests()).thenReturn(Collections.emptyList());
+        when(ccrRequestService.findAllSimulationInProgressRequests()).thenReturn(Collections.emptyList());
 
         // Act
-        changeBeginStatusService.startSimulationRequest();
+        changeEndStatusService.startChangeEndStatusRequestsForSimulation();
 
         // Assert
-        verify(ccrRequestProcessDetailsService, never()).updateChangeBeginStatusById(anyLong(), any());
+        verify(ccrRequestProcessDetailsService, never()).updateChangeEndStatusById(anyLong(), eq("OK"));
+        verify(ccrRequestService, never()).updateStatus(anyLong(), eq("OK"));
     }
 
     @Test
-    void testStartSimulationRequest_WithSimulationRequest() throws SDPReportingNMSCException {
+    public void testStartChangeEndStatusRequestsForSimulation_WithRequests() throws SDPReportingNMSCException {
         // Arrange
-        CcrRequestBO simulationRequest = new CcrRequestBO();
-        List<CcrRequestBO> simulationRequests = Collections.singletonList(simulationRequest);
+        CcrRequestBO requestBO = mock(CcrRequestBO.class); // Mock a CcrRequestBO
+        List<CcrRequestBO> requestList = Collections.singletonList(requestBO);
 
-        when(ccrRequestService.findPendingSimulationRequests()).thenReturn(simulationRequests);
-        when(ccrRequestProcessDetailsService.updateChangeBeginStatusById(anyLong(), any())).thenReturn(null);
+        when(ccrRequestService.findAllSimulationInProgressRequests()).thenReturn(requestList);
+        when(ccrRequestProcessDetailsService.isAllDependencyCompleted(any(CcrRequestBO.class), eq("CHANGE_END_STATUS"))).thenReturn(true);
 
         // Act
-        changeBeginStatusService.startSimulationRequest();
+        changeEndStatusService.startChangeEndStatusRequestsForSimulation();
 
         // Assert
-        verify(ccrRequestProcessDetailsService, times(1)).updateChangeBeginStatusById(anyLong(), eq("OK"));
+        verify(ccrRequestProcessDetailsService, times(1)).updateChangeEndStatusById(anyLong(), eq("OK"));
+        verify(ccrRequestService, times(1)).updateStatus(anyLong(), eq("OK"));
     }
 
     @Test
-    void testGetPriorityRequestFromRequestList_NoRequests() {
+    public void testStartChangeEndStatusRequestsForSimulation_Exception() throws SDPReportingNMSCException {
         // Arrange
-        List<CcrRequestBO> requestList = Collections.emptyList();
+        when(ccrRequestService.findAllSimulationInProgressRequests()).thenThrow(new RuntimeException("DB Error"));
 
         // Act & Assert
-        SDPReportingNMSCException thrownException = assertThrows(SDPReportingNMSCException.class, () -> {
-            changeBeginStatusService.getPriorityRequestFromRequestList(requestList);
-        });
-        assertEquals("Exception occurred while trying to get the request using getPriorityRequestFromRequestList", thrownException.getMessage());
-    }
-
-    @Test
-    void testGetPriorityRequestFromRequestList_ValidRequest() throws SDPReportingNMSCException {
-        // Arrange
-        CcrRequestBO request = new CcrRequestBO();
-        List<CcrRequestBO> requestList = Collections.singletonList(request);
-
-        // Mock sorting logic if needed
-        when(requestList.stream().sorted(any())).thenReturn(requestList.stream());
-        when(requestList.stream().findFirst()).thenReturn(Optional.of(request));
-
-        // Act
-        CcrRequestBO result = changeBeginStatusService.getPriorityRequestFromRequestList(requestList);
-
-        // Assert
-        assertNotNull(result);
-        assertEquals(request, result);
-    }
-
-    @Test
-    void testChangeStatusOfRequest() throws SDPReportingNMSCException {
-        // Arrange
-        CcrRequestBO request = new CcrRequestBO();
-
-        // Act
-        changeBeginStatusService.changeStatusOfRequest(request);
-
-        // Assert
-        verify(ccrRequestService).updateStatus(request.getId(), "IN_PROGRESS");
-        verify(ccrRequestProcessDetailsService).updateChangeBeginStatusById(request.getId(), "OK");
+        try {
+            changeEndStatusService.startChangeEndStatusRequestsForSimulation();
+            fail("Expected SDPReportingNMSCException");
+        } catch (SDPReportingNMSCException e) {
+            assertEquals("Exception: DB Error", e.getMessage());
+        }
     }
 }
