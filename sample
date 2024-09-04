@@ -6,24 +6,19 @@ import org.junit.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-public class ChangeEndStatusServiceTest {
+public class CcrRequestProcessDetailsServiceTest {
 
     @Mock
-    private ICCrRequestService ccrRequestService;
-
-    @Mock
-    private ICcrRequestProcessDetailsService ccrRequestProcessDetailsService;
+    private ICcrRequestProcessDetailsRepository ccrRequestProcessDetailsRepository;
 
     @InjectMocks
-    private ChangeEndStatusService changeEndStatusService;
-
-    private static final Logger logger = LoggerFactory.getLogger(ChangeEndStatusService.class);
+    private CcrRequestProcessDetailsService ccrRequestProcessDetailsService;
 
     @Before
     public void setUp() {
@@ -31,92 +26,118 @@ public class ChangeEndStatusServiceTest {
     }
 
     @Test
-    public void testStartChangeEndStatusRequests_NoRequests() throws SDPReportingNMSCException {
+    public void testUpdateChangeBeginStatusById_Success() throws SDPReportingNMSCException {
         // Arrange
-        when(ccrRequestService.findAllMonthlyOrQuarterlyInProgressRequests()).thenReturn(Collections.emptyList());
+        Long requestId = 1L;
+        String status = "OK";
+        CcrRequestProcessDetails ccrRequestProcessDetails = mock(CcrRequestProcessDetails.class);
+        when(ccrRequestProcessDetailsRepository.findRequestUsingRequestIdAndName(requestId, "CHANGE_BEGIN_STATUS"))
+            .thenReturn(ccrRequestProcessDetails);
 
         // Act
-        changeEndStatusService.startChangeEndStatusRequests();
+        ccrRequestProcessDetailsService.updateChangeBeginStatusById(requestId, status);
 
         // Assert
-        verify(ccrRequestProcessDetailsService, never()).updateChangeEndStatusById(anyLong(), eq("OK"));
-        verify(ccrRequestService, never()).updateStatus(anyLong(), eq("OK"));
-        verify(ccrRequestService, never()).updateLatestMonthly(any());
+        verify(ccrRequestProcessDetails).setStatus(status);
+        verify(ccrRequestProcessDetailsRepository).save(ccrRequestProcessDetails);
     }
 
     @Test
-    public void testStartChangeEndStatusRequests_WithRequests() throws SDPReportingNMSCException {
+    public void testUpdateChangeBeginStatusById_RequestNotFound() throws SDPReportingNMSCException {
         // Arrange
-        CcrRequestBO requestBO = mock(CcrRequestBO.class); // Mock a CcrRequestBO
-        List<CcrRequestBO> requestList = Collections.singletonList(requestBO);
-
-        when(ccrRequestService.findAllMonthlyOrQuarterlyInProgressRequests()).thenReturn(requestList);
-        when(ccrRequestProcessDetailsService.isAllDependencyCompleted(any(CcrRequestBO.class), eq("CHANGE_END_STATUS"))).thenReturn(true);
-
-        // Act
-        changeEndStatusService.startChangeEndStatusRequests();
-
-        // Assert
-        verify(ccrRequestProcessDetailsService, times(1)).updateChangeEndStatusById(anyLong(), eq("OK"));
-        verify(ccrRequestService, times(1)).updateStatus(anyLong(), eq("OK"));
-        verify(ccrRequestService, times(1)).updateLatestMonthly(any());
-    }
-
-    @Test
-    public void testStartChangeEndStatusRequests_Exception() throws SDPReportingNMSCException {
-        // Arrange
-        when(ccrRequestService.findAllMonthlyOrQuarterlyInProgressRequests()).thenThrow(new RuntimeException("DB Error"));
+        Long requestId = 1L;
+        String status = "OK";
+        when(ccrRequestProcessDetailsRepository.findRequestUsingRequestIdAndName(requestId, "CHANGE_BEGIN_STATUS"))
+            .thenReturn(null);
 
         // Act & Assert
         try {
-            changeEndStatusService.startChangeEndStatusRequests();
+            ccrRequestProcessDetailsService.updateChangeBeginStatusById(requestId, status);
             fail("Expected SDPReportingNMSCException");
         } catch (SDPReportingNMSCException e) {
-            assertEquals("Exception: DB Error", e.getMessage());
+            assertEquals("Exception occurred while trying to find request in T_CCR_REQUEST_PROCESS_DETAILS table using updateChangeBeginStatusById(...)", e.getMessage());
         }
     }
 
     @Test
-    public void testStartChangeEndStatusRequestsForSimulation_NoRequests() throws SDPReportingNMSCException {
+    public void testUpdateChangeEndStatusById_Success() throws SDPReportingNMSCException {
         // Arrange
-        when(ccrRequestService.findAllSimulationInProgressRequests()).thenReturn(Collections.emptyList());
+        Long requestId = 1L;
+        String status = "OK";
+        CcrRequestProcessDetails ccrRequestProcessDetails = mock(CcrRequestProcessDetails.class);
+        when(ccrRequestProcessDetailsRepository.findRequestUsingRequestIdAndName(requestId, "CHANGE_END_STATUS"))
+            .thenReturn(ccrRequestProcessDetails);
 
         // Act
-        changeEndStatusService.startChangeEndStatusRequestsForSimulation();
+        ccrRequestProcessDetailsService.updateChangeEndStatusById(requestId, status);
 
         // Assert
-        verify(ccrRequestProcessDetailsService, never()).updateChangeEndStatusById(anyLong(), eq("OK"));
-        verify(ccrRequestService, never()).updateStatus(anyLong(), eq("OK"));
+        verify(ccrRequestProcessDetails).setStatus(status);
+        verify(ccrRequestProcessDetailsRepository).save(ccrRequestProcessDetails);
     }
 
     @Test
-    public void testStartChangeEndStatusRequestsForSimulation_WithRequests() throws SDPReportingNMSCException {
+    public void testUpdateChangeEndStatusById_RequestNotFound() throws SDPReportingNMSCException {
         // Arrange
-        CcrRequestBO requestBO = mock(CcrRequestBO.class); // Mock a CcrRequestBO
-        List<CcrRequestBO> requestList = Collections.singletonList(requestBO);
-
-        when(ccrRequestService.findAllSimulationInProgressRequests()).thenReturn(requestList);
-        when(ccrRequestProcessDetailsService.isAllDependencyCompleted(any(CcrRequestBO.class), eq("CHANGE_END_STATUS"))).thenReturn(true);
-
-        // Act
-        changeEndStatusService.startChangeEndStatusRequestsForSimulation();
-
-        // Assert
-        verify(ccrRequestProcessDetailsService, times(1)).updateChangeEndStatusById(anyLong(), eq("OK"));
-        verify(ccrRequestService, times(1)).updateStatus(anyLong(), eq("OK"));
-    }
-
-    @Test
-    public void testStartChangeEndStatusRequestsForSimulation_Exception() throws SDPReportingNMSCException {
-        // Arrange
-        when(ccrRequestService.findAllSimulationInProgressRequests()).thenThrow(new RuntimeException("DB Error"));
+        Long requestId = 1L;
+        String status = "OK";
+        when(ccrRequestProcessDetailsRepository.findRequestUsingRequestIdAndName(requestId, "CHANGE_END_STATUS"))
+            .thenReturn(null);
 
         // Act & Assert
         try {
-            changeEndStatusService.startChangeEndStatusRequestsForSimulation();
+            ccrRequestProcessDetailsService.updateChangeEndStatusById(requestId, status);
             fail("Expected SDPReportingNMSCException");
         } catch (SDPReportingNMSCException e) {
-            assertEquals("Exception: DB Error", e.getMessage());
+            assertEquals("Exception occurred while trying to find request in T_CCR_REQUEST_PROCESS_DETAILS table using updateChangeEndStatusById(...)", e.getMessage());
+        }
+    }
+
+    @Test
+    public void testIsAllDependencyCompleted_Success() throws SDPReportingNMSCException {
+        // Arrange
+        Long requestId = 1L;
+        CcrRequestBO ccrRequestBO = mock(CcrRequestBO.class);
+        CcrRequestProcessDetails ccrRequestProcessDetails = mock(CcrRequestProcessDetails.class);
+        List<Long> dependentOrderIds = Arrays.asList(1L, 2L);
+        List<String> dependentStatusList = Arrays.asList("OK", "OK");
+
+        when(ccrRequestBO.getId()).thenReturn(requestId);
+        when(ccrRequestProcessDetailsRepository.findRequestUsingRequestIdAndName(requestId, "CHANGE_END_STATUS"))
+            .thenReturn(ccrRequestProcessDetails);
+        when(ccrRequestProcessDetails.getProcess().getDependency()).thenReturn("1;2");
+        when(ccrRequestProcessDetailsRepository.findAllDependentStatus(requestId, dependentOrderIds))
+            .thenReturn(dependentStatusList);
+
+        // Act
+        boolean result = ccrRequestProcessDetailsService.isAllDependencyCompleted(ccrRequestBO, "CHANGE_END_STATUS");
+
+        // Assert
+        assertTrue(result);
+    }
+
+    @Test
+    public void testIsAllDependencyCompleted_DependencyNotCompleted() throws SDPReportingNMSCException {
+        // Arrange
+        Long requestId = 1L;
+        CcrRequestBO ccrRequestBO = mock(CcrRequestBO.class);
+        CcrRequestProcessDetails ccrRequestProcessDetails = mock(CcrRequestProcessDetails.class);
+        List<Long> dependentOrderIds = Arrays.asList(1L, 2L);
+        List<String> dependentStatusList = Collections.singletonList("OK");
+
+        when(ccrRequestBO.getId()).thenReturn(requestId);
+        when(ccrRequestProcessDetailsRepository.findRequestUsingRequestIdAndName(requestId, "CHANGE_END_STATUS"))
+            .thenReturn(ccrRequestProcessDetails);
+        when(ccrRequestProcessDetails.getProcess().getDependency()).thenReturn("1;2");
+        when(ccrRequestProcessDetailsRepository.findAllDependentStatus(requestId, dependentOrderIds))
+            .thenReturn(dependentStatusList);
+
+        // Act & Assert
+        try {
+            ccrRequestProcessDetailsService.isAllDependencyCompleted(ccrRequestBO, "CHANGE_END_STATUS");
+            fail("Expected SDPReportingNMSCException");
+        } catch (SDPReportingNMSCException e) {
+            assertEquals("Error while checking dependency: dependentOrderIds can not null/empty or finding dependentStatus in T_CCR_REQUEST_PROCESS_DETAILS table using isAllDependencyCompleted (...)", e.getMessage());
         }
     }
 }
