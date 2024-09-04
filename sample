@@ -1,0 +1,164 @@
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+
+class ChangeBeginStatusServiceTest {
+
+    @Mock
+    private ICcrRequestService ccrRequestService;
+
+    @Mock
+    private ICcrRequestProcessDetailsService ccrRequestProcessDetailsService;
+
+    @InjectMocks
+    private ChangeBeginStatusService changeBeginStatusService;
+
+    private static final Logger logger = LoggerFactory.getLogger(ChangeBeginStatusService.class);
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+    }
+
+    @Test
+    void testStartRequest_NoPendingRequests() throws SDPReportingNMSCException {
+        // Arrange
+        when(ccrRequestService.findPendingQuarterlyRequests()).thenReturn(Collections.emptyList());
+        when(ccrRequestService.findPendingMonthlyRequests()).thenReturn(Collections.emptyList());
+
+        // Act
+        changeBeginStatusService.startRequest();
+
+        // Assert
+        verify(ccrRequestProcessDetailsService, never()).updateChangeBeginStatusById(anyLong(), any());
+        // Add logger assertion if needed
+    }
+
+    @Test
+    void testStartRequest_WithQuarterlyRequest() throws SDPReportingNMSCException {
+        // Arrange
+        CcrRequestBO quarterlyRequest = new CcrRequestBO();
+        List<CcrRequestBO> quarterlyRequests = Collections.singletonList(quarterlyRequest);
+
+        when(ccrRequestService.findPendingQuarterlyRequests()).thenReturn(quarterlyRequests);
+        when(ccrRequestService.findPendingMonthlyRequests()).thenReturn(Collections.emptyList());
+        when(ccrRequestProcessDetailsService.updateChangeBeginStatusById(anyLong(), any())).thenReturn(null);
+
+        // Act
+        changeBeginStatusService.startRequest();
+
+        // Assert
+        verify(ccrRequestProcessDetailsService, times(1)).updateChangeBeginStatusById(anyLong(), eq("OK"));
+    }
+
+    @Test
+    void testStartRequest_WithMonthlyRequest() throws SDPReportingNMSCException {
+        // Arrange
+        CcrRequestBO monthlyRequest = new CcrRequestBO();
+        List<CcrRequestBO> monthlyRequests = Collections.singletonList(monthlyRequest);
+
+        when(ccrRequestService.findPendingQuarterlyRequests()).thenReturn(Collections.emptyList());
+        when(ccrRequestService.findPendingMonthlyRequests()).thenReturn(monthlyRequests);
+        when(ccrRequestProcessDetailsService.updateChangeBeginStatusById(anyLong(), any())).thenReturn(null);
+
+        // Act
+        changeBeginStatusService.startRequest();
+
+        // Assert
+        verify(ccrRequestProcessDetailsService, times(1)).updateChangeBeginStatusById(anyLong(), eq("OK"));
+    }
+
+    @Test
+    void testStartRequest_ExceptionThrown() throws SDPReportingNMSCException {
+        // Arrange
+        when(ccrRequestService.findPendingQuarterlyRequests()).thenThrow(new RuntimeException("DB Error"));
+
+        // Act & Assert
+        SDPReportingNMSCException thrownException = assertThrows(SDPReportingNMSCException.class, () -> {
+            changeBeginStatusService.startRequest();
+        });
+        assertEquals("Exception: DB Error", thrownException.getMessage());
+    }
+
+    @Test
+    void testStartSimulationRequest_NoPendingSimulationRequests() throws SDPReportingNMSCException {
+        // Arrange
+        when(ccrRequestService.findPendingSimulationRequests()).thenReturn(Collections.emptyList());
+
+        // Act
+        changeBeginStatusService.startSimulationRequest();
+
+        // Assert
+        verify(ccrRequestProcessDetailsService, never()).updateChangeBeginStatusById(anyLong(), any());
+    }
+
+    @Test
+    void testStartSimulationRequest_WithSimulationRequest() throws SDPReportingNMSCException {
+        // Arrange
+        CcrRequestBO simulationRequest = new CcrRequestBO();
+        List<CcrRequestBO> simulationRequests = Collections.singletonList(simulationRequest);
+
+        when(ccrRequestService.findPendingSimulationRequests()).thenReturn(simulationRequests);
+        when(ccrRequestProcessDetailsService.updateChangeBeginStatusById(anyLong(), any())).thenReturn(null);
+
+        // Act
+        changeBeginStatusService.startSimulationRequest();
+
+        // Assert
+        verify(ccrRequestProcessDetailsService, times(1)).updateChangeBeginStatusById(anyLong(), eq("OK"));
+    }
+
+    @Test
+    void testGetPriorityRequestFromRequestList_NoRequests() {
+        // Arrange
+        List<CcrRequestBO> requestList = Collections.emptyList();
+
+        // Act & Assert
+        SDPReportingNMSCException thrownException = assertThrows(SDPReportingNMSCException.class, () -> {
+            changeBeginStatusService.getPriorityRequestFromRequestList(requestList);
+        });
+        assertEquals("Exception occurred while trying to get the request using getPriorityRequestFromRequestList", thrownException.getMessage());
+    }
+
+    @Test
+    void testGetPriorityRequestFromRequestList_ValidRequest() throws SDPReportingNMSCException {
+        // Arrange
+        CcrRequestBO request = new CcrRequestBO();
+        List<CcrRequestBO> requestList = Collections.singletonList(request);
+
+        // Mock sorting logic if needed
+        when(requestList.stream().sorted(any())).thenReturn(requestList.stream());
+        when(requestList.stream().findFirst()).thenReturn(Optional.of(request));
+
+        // Act
+        CcrRequestBO result = changeBeginStatusService.getPriorityRequestFromRequestList(requestList);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(request, result);
+    }
+
+    @Test
+    void testChangeStatusOfRequest() throws SDPReportingNMSCException {
+        // Arrange
+        CcrRequestBO request = new CcrRequestBO();
+
+        // Act
+        changeBeginStatusService.changeStatusOfRequest(request);
+
+        // Assert
+        verify(ccrRequestService).updateStatus(request.getId(), "IN_PROGRESS");
+        verify(ccrRequestProcessDetailsService).updateChangeBeginStatusById(request.getId(), "OK");
+    }
+}
