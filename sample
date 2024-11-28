@@ -1,58 +1,53 @@
-def month_and_quarter_analysis(df):
-    import pandas as pd
-    import seaborn as sns
-    import matplotlib.pyplot as plt
-    import streamlit as st
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import streamlit as st
 
+def date_range_analysis(df):
     # Convert 'ACT_DATE' to datetime
     df['ACT_DATE'] = pd.to_datetime(df['ACT_DATE'], format='%d-%b-%y')
-    df['ACT_YEAR'] = df['ACT_DATE'].dt.year
-    df['ACT_MONTH'] = df['ACT_DATE'].dt.month
-    df['ACT_QUARTER'] = df['ACT_DATE'].dt.quarter
 
-    st.title('Month-wise and Quarter-wise Analysis')
-    
-    # Year selection
-    selected_year = st.selectbox('Select Year', sorted(df['ACT_YEAR'].unique()))
-    filtered_year_df = df[df['ACT_YEAR'] == selected_year]
+    st.title('Date Range-wise Analysis')
 
-    # Toggle for analysis type
-    analysis_type = st.radio("Select Analysis Type:", ["Month-wise", "Quarter-wise"])
+    # Get the minimum and maximum date from the dataset
+    min_date = df['ACT_DATE'].min()
+    max_date = df['ACT_DATE'].max()
 
-    if analysis_type == "Month-wise":
-        grouped_df = filtered_year_df.groupby('ACT_MONTH').size().reset_index(name='count')
-        grouped_df['label'] = grouped_df['ACT_MONTH'].map({
-            1: 'January', 2: 'February', 3: 'March',
-            4: 'April', 5: 'May', 6: 'June',
-            7: 'July', 8: 'August', 9: 'September',
-            10: 'October', 11: 'November', 12: 'December'
-        })
-        x_col = 'label'
-        x_label = 'Month'
-    else:  # Quarter-wise
-        grouped_df = filtered_year_df.groupby('ACT_QUARTER').size().reset_index(name='count')
-        grouped_df['label'] = grouped_df['ACT_QUARTER'].map({
-            1: '1st Quarter',
-            2: '2nd Quarter',
-            3: '3rd Quarter',
-            4: '4th Quarter'
-        })
-        x_col = 'label'
-        x_label = 'Quarter'
+    # Streamlit Calendar Inputs for Date Range
+    col1, col2 = st.columns(2)
+    with col1:
+        start_date = st.date_input("Select Start Date", value=min_date, min_value=min_date, max_value=max_date)
+    with col2:
+        end_date = st.date_input("Select End Date", value=max_date, min_value=start_date, max_value=max_date)
 
-    # Plotting
-    fig, ax = plt.subplots(figsize=(10, 6))
-    sns.barplot(
-        x=grouped_df[x_col],
-        y=grouped_df['count'],
-        palette="coolwarm",
-        edgecolor="black",
-        ax=ax
-    )
-    ax.set_xlabel(x_label, fontsize=12)
-    ax.set_ylabel('Total Number of Records', fontsize=12)
-    ax.set_title(f'Records Count {analysis_type} for Year {selected_year}', fontsize=14, fontweight='bold')
-    ax.tick_params(axis='both', which='major', labelsize=10)
-    plt.xticks(rotation=45)
+    # Check if valid dates are selected
+    if start_date and end_date:
+        # Filter data within the selected date range
+        filtered_df = df[(df['ACT_DATE'] >= pd.Timestamp(start_date)) & (df['ACT_DATE'] <= pd.Timestamp(end_date))]
 
-    st.pyplot(fig)
+        if not filtered_df.empty:
+            # Group by date
+            grouped_df = filtered_df.groupby('ACT_DATE').size().reset_index(name='count')
+            grouped_df['label'] = grouped_df['ACT_DATE'].dt.strftime('%d-%b')
+
+            # Plotting
+            fig, ax = plt.subplots(figsize=(12, 6))
+            sns.barplot(
+                x=grouped_df['label'],
+                y=grouped_df['count'],
+                palette="coolwarm",
+                edgecolor="black",
+                ax=ax
+            )
+            ax.set_xlabel('Date', fontsize=12)
+            ax.set_ylabel('Total Number of Records', fontsize=12)
+            ax.set_title(f'Records Count from {start_date.strftime("%d-%b-%Y")} to {end_date.strftime("%d-%b-%Y")}', 
+                         fontsize=14, fontweight='bold')
+            ax.tick_params(axis='both', which='major', labelsize=10)
+            plt.xticks(rotation=45)
+
+            st.pyplot(fig)
+        else:
+            st.warning("No data available for the selected date range.")
+    else:
+        st.warning("Please select both start and end dates.")
