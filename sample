@@ -20,8 +20,13 @@ def date_range_analysis(df):
     with col2:
         end_date = st.date_input("Select End Date", value=max_date, min_value=start_date, max_value=max_date)
 
-    # Check if valid dates are selected
-    if start_date and end_date:
+    # Enforce 1-month maximum range
+    date_diff = (pd.Timestamp(end_date) - pd.Timestamp(start_date)).days
+    max_allowed_days = 31  # 1 month limit
+
+    if date_diff > max_allowed_days:
+        st.warning(f"Date range is too large. Please select a range of 1 month or less (up to {max_allowed_days} days).")
+    elif start_date and end_date:
         # Filter data within the selected date range
         filtered_df = df[(df['ACT_DATE'] >= pd.Timestamp(start_date)) & (df['ACT_DATE'] <= pd.Timestamp(end_date))]
 
