@@ -1,38 +1,25 @@
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
-import streamlit as st
+def month_and_quarter_analysis(df):
+    import pandas as pd
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+    import streamlit as st
 
-def getYearlyAnalysisWithDateRange(df):
     # Convert 'ACT_DATE' to datetime
     df['ACT_DATE'] = pd.to_datetime(df['ACT_DATE'], format='%d-%b-%y')
-    
-    # Extract year, month, and quarter
     df['ACT_YEAR'] = df['ACT_DATE'].dt.year
     df['ACT_MONTH'] = df['ACT_DATE'].dt.month
     df['ACT_QUARTER'] = df['ACT_DATE'].dt.quarter
 
-    # Streamlit UI
-    st.title('Yearly Data Analysis')
+    st.title('Month-wise and Quarter-wise Analysis')
     
-    # Select a year
+    # Year selection
     selected_year = st.selectbox('Select Year', sorted(df['ACT_YEAR'].unique()))
     filtered_year_df = df[df['ACT_YEAR'] == selected_year]
 
-    # Visualization Options
-    analysis_type = st.radio("Select Analysis Type:", ["Quarter-wise", "Month-wise", "Date Range-wise"])
+    # Toggle for analysis type
+    analysis_type = st.radio("Select Analysis Type:", ["Month-wise", "Quarter-wise"])
 
-    if analysis_type == "Quarter-wise":
-        grouped_df = filtered_year_df.groupby('ACT_QUARTER').size().reset_index(name='count')
-        grouped_df['label'] = grouped_df['ACT_QUARTER'].map({
-            1: '1st Quarter',
-            2: '2nd Quarter',
-            3: '3rd Quarter',
-            4: '4th Quarter'
-        })
-        x_col = 'label'
-        x_label = 'Quarter'
-    elif analysis_type == "Month-wise":
+    if analysis_type == "Month-wise":
         grouped_df = filtered_year_df.groupby('ACT_MONTH').size().reset_index(name='count')
         grouped_df['label'] = grouped_df['ACT_MONTH'].map({
             1: 'January', 2: 'February', 3: 'March',
@@ -42,27 +29,16 @@ def getYearlyAnalysisWithDateRange(df):
         })
         x_col = 'label'
         x_label = 'Month'
-    else:  # Date Range-wise
-        # Create ranges of 2 weeks
-        date_ranges = pd.date_range(
-            start=f'{selected_year}-01-01',
-            end=f'{selected_year}-12-31',
-            freq='2W'
-        )
-        labels = [f'{date_ranges[i].strftime("%d-%b")} to {date_ranges[i+1].strftime("%d-%b")}' 
-                  for i in range(len(date_ranges)-1)]
-
-        # Assign ranges using pd.cut
-        filtered_year_df['Date_Range'] = pd.cut(
-            filtered_year_df['ACT_DATE'], 
-            bins=date_ranges, 
-            labels=labels,
-            right=False  # Include the left edge of the interval
-        )
-        grouped_df = filtered_year_df.groupby('Date_Range').size().reset_index(name='count')
-        grouped_df['label'] = grouped_df['Date_Range']
+    else:  # Quarter-wise
+        grouped_df = filtered_year_df.groupby('ACT_QUARTER').size().reset_index(name='count')
+        grouped_df['label'] = grouped_df['ACT_QUARTER'].map({
+            1: '1st Quarter',
+            2: '2nd Quarter',
+            3: '3rd Quarter',
+            4: '4th Quarter'
+        })
         x_col = 'label'
-        x_label = 'Date Range'
+        x_label = 'Quarter'
 
     # Plotting
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -79,5 +55,4 @@ def getYearlyAnalysisWithDateRange(df):
     ax.tick_params(axis='both', which='major', labelsize=10)
     plt.xticks(rotation=45)
 
-    # Display plot in Streamlit
     st.pyplot(fig)
