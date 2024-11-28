@@ -3,54 +3,67 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import streamlit as st
 
-def getQuarterwiseChart(df):
-    # Convert the 'ACT_DATE' column to datetime
+def getYearlyAnalysis(df):
+    # Convert 'ACT_DATE' to datetime
     df['ACT_DATE'] = pd.to_datetime(df['ACT_DATE'], format='%d-%b-%y')
     
-    # Extract Year and Quarter
+    # Extract year, month, and quarter
     df['ACT_YEAR'] = df['ACT_DATE'].dt.year
+    df['ACT_MONTH'] = df['ACT_DATE'].dt.month
+    df['ACT_DAY'] = df['ACT_DATE'].dt.day
     df['ACT_QUARTER'] = df['ACT_DATE'].dt.quarter
-    
-    # Group data by Year and Quarter
-    year_quarter_count = df.groupby(['ACT_YEAR', 'ACT_QUARTER']).size().reset_index(name='quarter_count')
-    # st.write(year_quarter_count)  # Uncomment to display data in Streamlit for debugging
 
     # Streamlit UI
     st.title('Yearly Data Analysis')
     
-    # User selects the year
+    # Select a year
     selected_year = st.selectbox('Select Year', sorted(df['ACT_YEAR'].unique()))
-    
-    # Filter data for the selected year
     filtered_year_df = df[df['ACT_YEAR'] == selected_year]
-    filtered_year_df_count = (
-        filtered_year_df.groupby('ACT_QUARTER')
-        .size()
-        .reset_index(name='filter_count')
-    )
 
-    # Map quarter numbers to labels
-    quarter_labels = filtered_year_df_count['ACT_QUARTER'].map({
-        1: '1st Quarter',
-        2: '2nd Quarter',
-        3: '3rd Quarter',
-        4: '4th Quarter'
-    })
+    # Visualization Options
+    analysis_type = st.radio("Select Analysis Type:", ["Quarter-wise", "Month-wise", "Date-wise"])
+
+    # Create the appropriate grouping
+    if analysis_type == "Quarter-wise":
+        grouped_df = filtered_year_df.groupby('ACT_QUARTER').size().reset_index(name='count')
+        grouped_df['label'] = grouped_df['ACT_QUARTER'].map({
+            1: '1st Quarter',
+            2: '2nd Quarter',
+            3: '3rd Quarter',
+            4: '4th Quarter'
+        })
+        x_col = 'label'
+        x_label = 'Quarter'
+    elif analysis_type == "Month-wise":
+        grouped_df = filtered_year_df.groupby('ACT_MONTH').size().reset_index(name='count')
+        grouped_df['label'] = grouped_df['ACT_MONTH'].map({
+            1: 'January', 2: 'February', 3: 'March',
+            4: 'April', 5: 'May', 6: 'June',
+            7: 'July', 8: 'August', 9: 'September',
+            10: 'October', 11: 'November', 12: 'December'
+        })
+        x_col = 'label'
+        x_label = 'Month'
+    else:  # Date-wise
+        grouped_df = filtered_year_df.groupby('ACT_DATE').size().reset_index(name='count')
+        grouped_df['label'] = grouped_df['ACT_DATE'].dt.strftime('%d-%b')
+        x_col = 'label'
+        x_label = 'Date'
 
     # Plotting
-    fig, ax = plt.subplots(figsize=(6, 4))
+    fig, ax = plt.subplots(figsize=(10, 6))
     sns.barplot(
-        x=quarter_labels,
-        y=filtered_year_df_count['filter_count'],
+        x=grouped_df[x_col],
+        y=grouped_df['count'],
         palette="coolwarm",
         edgecolor="black",
         ax=ax
     )
-    ax.set_xlabel('Quarter-wise', fontsize=10)
-    ax.set_ylabel('Total Number of Records', fontsize=10)
-    ax.set_title(f'Records Count per Quarter for Year {selected_year}', fontsize=12, fontweight='bold')
-    ax.tick_params(axis='both', which='major', labelsize=8)
-    plt.xticks(rotation=15)
+    ax.set_xlabel(x_label, fontsize=12)
+    ax.set_ylabel('Total Number of Records', fontsize=12)
+    ax.set_title(f'Records Count {analysis_type} for Year {selected_year}', fontsize=14, fontweight='bold')
+    ax.tick_params(axis='both', which='major', labelsize=10)
+    plt.xticks(rotation=45 if analysis_type != "Quarter-wise" else 0)
 
     # Display plot in Streamlit
     st.pyplot(fig)
