@@ -7,7 +7,7 @@ def getYearlyAnalysisWithDateRange(df):
     # Convert 'ACT_DATE' to datetime
     df['ACT_DATE'] = pd.to_datetime(df['ACT_DATE'], format='%d-%b-%y')
     
-    # Extract year, month, day, and quarter
+    # Extract year, month, and quarter
     df['ACT_YEAR'] = df['ACT_DATE'].dt.year
     df['ACT_MONTH'] = df['ACT_DATE'].dt.month
     df['ACT_QUARTER'] = df['ACT_DATE'].dt.quarter
@@ -20,7 +20,7 @@ def getYearlyAnalysisWithDateRange(df):
     filtered_year_df = df[df['ACT_YEAR'] == selected_year]
 
     # Visualization Options
-    analysis_type = st.radio("Select Analysis Type:", ["Quarter-wise", "Month-wise", "Date-wise with Range"])
+    analysis_type = st.radio("Select Analysis Type:", ["Quarter-wise", "Month-wise", "Date Range-wise"])
 
     if analysis_type == "Quarter-wise":
         grouped_df = filtered_year_df.groupby('ACT_QUARTER').size().reset_index(name='count')
@@ -42,19 +42,25 @@ def getYearlyAnalysisWithDateRange(df):
         })
         x_col = 'label'
         x_label = 'Month'
-    else:  # Date-wise with Range
-        # Create weekly or bi-weekly ranges
-        filtered_year_df['Week_Range'] = pd.cut(
-            filtered_year_df['ACT_DATE'], 
-            bins=pd.date_range(
-                start=f'{selected_year}-01-01',
-                end=f'{selected_year}-12-31',
-                freq='2W'  # 2-week intervals
-            ),
-            labels=lambda x: x.left.strftime('%d-%b') + " to " + x.right.strftime('%d-%b')
+    else:  # Date Range-wise
+        # Create ranges of 2 weeks
+        date_ranges = pd.date_range(
+            start=f'{selected_year}-01-01',
+            end=f'{selected_year}-12-31',
+            freq='2W'
         )
-        grouped_df = filtered_year_df.groupby('Week_Range').size().reset_index(name='count')
-        grouped_df['label'] = grouped_df['Week_Range']
+        labels = [f'{date_ranges[i].strftime("%d-%b")} to {date_ranges[i+1].strftime("%d-%b")}' 
+                  for i in range(len(date_ranges)-1)]
+
+        # Assign ranges using pd.cut
+        filtered_year_df['Date_Range'] = pd.cut(
+            filtered_year_df['ACT_DATE'], 
+            bins=date_ranges, 
+            labels=labels,
+            right=False  # Include the left edge of the interval
+        )
+        grouped_df = filtered_year_df.groupby('Date_Range').size().reset_index(name='count')
+        grouped_df['label'] = grouped_df['Date_Range']
         x_col = 'label'
         x_label = 'Date Range'
 
