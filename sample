@@ -1,69 +1,59 @@
-import pandas as pd
-import streamlit as st
-import yaml
+Problem Statement: Change Begin Status Service
+We need a simple and reliable way to manage and trigger our scheduled jobs for Quarterly (CR), Monthly, and Daily processes. These jobs depend on updating specific statuses in the Trader table and the Request Process table. Without a proper mechanism to handle these updates, the dependent services cannot execute their tasks properly.
 
-# Load the configuration from the YAML file
-with open('config.yml', 'r') as file:
-    config = yaml.safe_load(file)
+The Change Begin Status Service addresses this issue by updating the status of records in these tables. These updates act as a trigger, allowing other services to start their processes. This ensures that all scheduled jobs—whether quarterly, monthly, or daily—are executed smoothly and on time.
 
-# Get market mapping from the config
-market_mapping = config['market_mapping']
+Key Points:
+The service updates the statuses for specific jobs (Quarterly, Monthly, or Daily).
+It ensures that the changes in the tables are accurate and consistent.
+The updated statuses serve as triggers for other dependent services to run their tasks.
+The service can handle multiple requests simultaneously to avoid delays or conflicts.
+Purpose:
+To provide a simple and effective solution for managing and triggering scheduled jobs by updating their statuses and enabling dependent services to work efficiently.
 
-# Reverse mapping to easily filter data
-reverse_mapping = {v: k for k, values in market_mapping.items() for v in values}
+Let me know if you'd like further edits!
 
-# Load the CSV file
-df_reshaped = pd.read_csv(r'..\finalsuspectReport.csv')
 
-# Transform the data (assuming `transform_csv` is a function you have defined)
-f_reshaped = transform_csv(df_reshaped)
 
-# Add a column for `FIN_MKT_PLCE` (example data for demonstration)
-f_reshaped['FIN_MKT_PLCE'] = ['a', 'b', 'c', 'a', 'c']  # Replace this with actual data
 
-# Add a new column for mapped market labels
-f_reshaped['MARKET_LABEL'] = f_reshaped['FIN_MKT_PLCE'].map(reverse_mapping)
+------------------------------------------------
 
-# Sidebar settings
-with st.sidebar:
-    st.title('Suspect Management Dashboard')
+Problem Statement: Change End Status Service
+We need a service to ensure that all tasks linked to specific jobs—such as Monthly, Quarterly (CR), and Daily—are properly tracked and marked as completed before moving forward. These jobs often depend on several services running in sequence, and it's important to check that all dependent tasks are fully completed before finalizing the job status.
 
-    # Create dropdown options
-    template_list = list(f_reshaped['DEF_ATTR_TEMPLLONGNAME'].unique())[::-1]
-    attr_status_list = list(f_reshaped['ATTR_STATUS'].unique())[::-1]
-    attr_list = list(f_reshaped['ATTR_NUM'].unique())[::-1]
-    market_list = list(market_mapping.keys())
+The Change End Status Service handles this process. It checks the status of all dependent services for the current running job. Once all tasks are confirmed as completed, the service updates the job’s final status to mark it as “completed.” This update signals other jobs or services, such as the next set of scheduled processes, that they can now begin.
 
-    # Add 'ALL' option to each dropdown
-    template_list.append("ALL")
-    attr_status_list.append("ALL")
-    attr_list.append("ALL")
-    market_list.append("ALL")
+Key Points:
+The service verifies that all dependent tasks for a job (Monthly, Quarterly, or Daily) are completed.
+Once confirmed, it updates the job’s status to indicate completion.
+This ensures that other scheduled jobs or services know they can start their tasks.
+The service helps maintain a smooth and reliable workflow by coordinating job dependencies.
+Purpose:
+To provide a reliable mechanism for checking and updating the final status of running jobs, ensuring that all dependencies are met before signaling the next steps in the process.
 
-    # Dropdowns for selection
-    template = st.selectbox('Select a template', template_list, index=len(template_list) - 1)
-    market = st.selectbox('Select a Market', market_list, index=len(market_list) - 1)
+Let me know if you'd like adjustments!
+-----------------------------------------------------------------------
 
-# Filter data based on template selection
-df_selected_template = f_reshaped
-if template != 'ALL':
-    df_selected_template = df_selected_template[df_selected_template['DEF_ATTR_TEMPLLONGNAME'] == template]
 
-# Filter data based on market selection
-if market != 'ALL':
-    selected_values = market_mapping[market]  # Get the original values (e.g., ['a', 'b'])
-    df_selected_template = df_selected_template[df_selected_template['FIN_MKT_PLCE'].isin(selected_values)]
 
-# Status and attribute filters (add these below if needed)
-status = st.selectbox('Select a Status', attr_status_list, index=len(attr_status_list) - 1)
-if status != 'ALL':
-    df_selected_template = df_selected_template[df_selected_template['ATTR_STATUS'] == status]
+Problem Statement: Scope Management API
+In our system, we need to manage the scope required for computations associated with Monthly, Quarterly (CR), and Daily jobs. The scope is crucial for running these jobs effectively and is maintained in specific tables. To handle this, we require a dedicated service to manage the scope, including tasks like adding a new scope, deactivating old scopes, and setting up new ones.
 
-attribute = st.selectbox('Select an Attribute', attr_list, index=len(attr_list) - 1)
-if attribute != 'ALL':
-    df_selected_template = df_selected_template[df_selected_template['ATTR_NUM'] == attribute]
+The Scope Management API was developed to streamline these operations. For Monthly and Quarterly jobs, this service reads the scope (referred to as baskets) from the shared drive, deactivates the old scope, and updates the system with the new scope. Additionally, for SIF (full scope), the API retrieves the required data, updates the underlying scope, and ensures the system is ready for computation. For Daily jobs, the process focuses on handling only the delta changes (differences between the current and new scope), avoiding the need to deactivate the entire scope.
 
-# Display results
-st.header("Number of records: " + str(len(df_selected_template)))
-st.write("---")
-st.write(df_selected_template)
+Key Points:
+Monthly/Quarterly Jobs:
+
+Read the new scope (baskets) from the shared drive.
+Deactivate the old scope and update with the new scope.
+Handle SIF (full scope) by retrieving data and updating the underlying scope.
+Daily Jobs:
+
+Focus on delta changes between the current and new scope.
+Update the scope with the delta without deactivating the entire scope.
+Ensure the system is always up-to-date with the correct scope for computations.
+
+Purpose:
+To provide a service that manages the scope required for different types of jobs, ensuring that the right data is always available for computations while maintaining consistency and efficiency.
+
+Let me know if you’d like this adjusted further!
